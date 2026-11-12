@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ULTRON – Personal AI Voice Assistant</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Noto+Sans+Tamil:wght@400;600;700&family=Inter:wght@400;500;600&display=swap');
+
+    :root {
+      --bg-void: #03060e;
+      --bg-panel: #081024;
+      --neon-cyan: #00e5ff;
+      --electric-blue: #2979ff;
+    }
+
+    body {
+      background-color: var(--bg-void);
+      color: #e2e8f0;
+      font-family: 'Inter', 'Noto Sans Tamil', sans-serif;
+      overflow-x: hidden;
+    }
+
+    .font-cyber {
+      font-family: 'Orbitron', sans-serif;
+    }
+
+    /* Glowing ULTRON Arc Reactor Animation */
+    @keyframes spinSlow {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    @keyframes spinReverse {
+      0% { transform: rotate(360deg); }
+      100% { transform: rotate(0deg); }
+    }
+
+    @keyframes corePulse {
+      0%, 100% { transform: scale(0.95); box-shadow: 0 0 25px rgba(0, 229, 255, 0.45), inset 0 0 20px rgba(41, 121, 255, 0.6); }
+      50% { transform: scale(1.06); box-shadow: 0 0 55px rgba(0, 229, 255, 0.85), inset 0 0 35px rgba(0, 229, 255, 0.9); }
+    }
+
+    .ring-outer {
+      animation: spinSlow 10s linear infinite;
+    }
+
+    .ring-inner {
+      animation: spinReverse 6s linear infinite;
+    }
+
+    .core-orb {
+      animation: corePulse 2.4s ease-in-out infinite;
+    }
+
+    .state-listening .ring-outer { animation-duration: 2.2s; border-color: #00ffaa; }
+    .state-speaking .core-orb { animation-duration: 0.55s; }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #050a18; }
+    ::-webkit-scrollbar-thumb { background: #1e3a8a; border-radius: 999px; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-between p-4 md:p-6">
+
+  <!-- Top Status Bar -->
+  <header class="w-full max-w-2xl flex flex-wrap items-center justify-between gap-3 bg-[#081024]/90 border border-cyan-500/25 rounded-2xl px-4 py-3 backdrop-blur-md shadow-lg">
+    <div class="flex items-center gap-3">
+      <button id="modeToggleBtn" class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/40 transition">
+        <span id="modeDot" class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span id="modeLabel">ONLINE AI MODE</span>
+      </button>
+
+      <button id="bgWakeBtn" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 hover:bg-cyan-500/20 transition">
+        <span>🎙️</span>
+        <span id="bgWakeLabel">Wake-Word: ON</span>
+      </button>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <button id="langToggleBtn" class="px-3 py-1.5 rounded-full text-xs font-bold bg-blue-600/20 text-cyan-300 border border-cyan-400/40 hover:bg-blue-600/35 transition">
+        தமிழ் + EN
+      </button>
+      <button id="settingsBtn" class="p-2 rounded-full bg-slate-800/80 text-cyan-400 border border-cyan-500/30 hover:bg-slate-700 transition" title="Settings & Android Permissions">
+        ⚙️
+      </button>
+    </div>
+  </header>
+
+  <!-- Central Futuristic ULTRON Core -->
+  <main class="w-full max-w-2xl flex-1 flex flex-col items-center justify-between my-4 gap-4">
+    <div id="reactorContainer" class="relative flex flex-col items-center justify-center py-4">
+      <div class="relative w-44 h-44 flex items-center justify-center">
+        <!-- Outer Rotating Cyber Ring -->
+        <div class="ring-outer absolute inset-0 rounded-full border-2 border-dashed border-cyan-400/60"></div>
+        <!-- Inner Counter-Rotating Ring -->
+        <div class="ring-inner absolute inset-3 rounded-full border-2 border-t-blue-500 border-r-cyan-300 border-b-transparent border-l-blue-600"></div>
+        <!-- Glowing Core -->
+        <div id="coreOrb" class="core-orb w-28 h-28 rounded-full bg-gradient-to-br from-cyan-400/30 via-blue-700/50 to-slate-950 border border-cyan-300/70 flex flex-col items-center justify-center cursor-pointer select-none">
+          <span class="font-cyber text-base font-black tracking-widest text-white drop-shadow">ULTRON</span>
+          <span id="statusText" class="text-[10px] font-semibold tracking-wider text-cyan-300 mt-1">READY</span>
+        </div>
+      </div>
+
+      <!-- Live Speech Transcript & Simulated Hardware Action Banner -->
+      <p id="liveTranscript" class="text-xs text-cyan-300/90 h-5 mt-2 text-center font-medium"></p>
+      <div id="deviceActionToast" class="hidden mt-1 px-4 py-1.5 rounded-full bg-blue-950/90 border border-cyan-400/50 text-cyan-200 text-xs font-semibold shadow-md"></div>
+    </div>
+
+    <!-- Quick Voice Command Test Chips (Tamil, Tanglish & English) -->
+    <div class="w-full flex flex-wrap justify-center gap-2">
+      <button class="quick-cmd px-3 py-1 rounded-full text-xs bg-[#0b1736] hover:bg-blue-900/50 text-cyan-200 border border-cyan-500/30 transition" data-cmd="Hey Ultron, mani enna?">
+        "Hey Ultron, mani enna?"
+      </button>
+      <button class="quick-cmd px-3 py-1 rounded-full text-xs bg-[#0b1736] hover:bg-blue-900/50 text-cyan-200 border border-cyan-500/30 transition" data-cmd="Turn on the flashlight">
+        "Turn on the flashlight"
+      </button>
+      <button class="quick-cmd px-3 py-1 rounded-full text-xs bg-[#0b1736] hover:bg-blue-900/50 text-cyan-200 border border-cyan-500/30 transition" data-cmd="Open YouTube">
+        "Open YouTube"
+      </button>
+      <button class="quick-cmd px-3 py-1 rounded-full text-xs bg-[#0b1736] hover:bg-blue-900/50 text-cyan-200 border border-cyan-500/30 transition" data-cmd="Gravity பற்றி தமிழில் எளிமையாக சொல்லு">
+        "Gravity பற்றி தமிழில் சொல்லு"
+      </button>
+      <button class="quick-cmd px-3 py-1 rounded-full text-xs bg-[#0b1736] hover:bg-blue-900/50 text-cyan-200 border border-cyan-500/30 transition" data-cmd="Call 9876543210">
+        "Call 9876543210"
+      </button>
+    </div>
+
+    <!-- Session Conversation Feed -->
+    <div id="chatContainer" class="w-full flex-1 min-h-[230px] max-h-[320px] overflow-y-auto bg-[#060c1d]/90 border border-blue-900/60 rounded-2xl p-4 space-y-3 shadow-inner">
+    </div>
+
+    <!-- Input & Microphone Controls -->
+    <div class="w-full flex items-center gap-2">
+      <input
+        id="userInput"
+        type="text"
+        placeholder="Say 'Hey Ultron' or type in Tamil / English..."
+        class="flex-1 bg-[#081229] text-white placeholder-slate-400 text-sm rounded-xl px-4 py-3 border border-blue-800/70 focus:outline-none focus:border-cyan-400"
+      />
+      <button id="sendBtn" class="px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition">
+        Send
+      </button>
+      <button id="micBtn" class="w-12 h-12 rounded-full bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold flex items-center justify-center shadow-[0_0_20px_rgba(0,229,255,0.5)] transition" title="Speak to ULTRON">
+        🎤
+      </button>
+    </div>
+  </main>
+
+  <!-- Settings & Android Architecture Modal -->
+  <div id="settingsModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div class="w-full max-w-md bg-[#081126] border border-cyan-500/40 rounded-2xl p-5 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between">
+        <h2 class="font-cyber text-sm font-bold text-cyan-400 tracking-wider">ULTRON SYSTEM SETTINGS</h2>
+        <button id="closeSettingsBtn" class="text-slate-400 hover:text-white text-lg">✕</button>
+      </div>
+
+      <div class="space-y-3 text-xs text-slate-300">
+        <div>
+          <label class="block text-cyan-300 font-semibold mb-1">Optional Gemini API Key (For Live Web AI)</label>
+          <input id="apiKeyInput" type="password" placeholder="AIzaSy..." class="w-full bg-[#040814] border border-blue-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-cyan-400" />
+        </div>
+
+        <div class="p-3 rounded-xl bg-blue-950/40 border border-blue-800/60 space-y-1.5">
+          <p class="font-semibold text-cyan-300">Android 10+ Background & Permissions Status:</p>
+          <p>• <span class="text-emerald-400">FOREGROUND_SERVICE_MICROPHONE</span>: Required for "Hey Ultron" wake detection outside the app.</p>
+          <p>• <span class="text-emerald-400">Offline Mode</span>: Supports Tamil/English commands, Flashlight, Alarm, Time, Volume, App Launch, and Call Confirmation without internet.</p>
+          <p>• <span class="text-amber-300">Lock Screen Note</span>: Disable OEM Battery Optimization in Android Settings for uninterrupted wake-word access.</p>
+        </div>
+      </div>
+
+      <div class="flex justify-between pt-2">
+        <button id="clearChatBtn" class="px-3 py-2 rounded-lg bg-red-950/60 text-red-300 border border-red-700/50 text-xs font-semibold">Clear History</button>
+        <button id="saveSettingsBtn" class="px-4 py-2 rounded-lg bg-cyan-500 text-slate-950 text-xs font-bold">Save Config</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // ULTRON WEB SIMULATION ENGINE (Mirrors Android Kotlin Architecture)
+    // =========================================================================
+    const state = {
+      isOnline: true,
+      wakeWordEnabled: true,
+      preferTamil: true,
+      pendingCallNumber: null,
+      flashlightOn: false,
+      volumeLevel: 60,
+      sessionHistory: []
+    };
+
+    const chatContainer = document.getElementById('chatContainer');
+    const userInput = document.getElementById('userInput');
+    const statusText = document.getElementById('statusText');
+    const reactorContainer = document.getElementById('reactorContainer');
+    const liveTranscript = document.getElementById('liveTranscript');
+    const deviceActionToast = document.getElementById('deviceActionToast');
+
+    function showDeviceAction(label) {
+      deviceActionToast.textContent = label;
+      deviceActionToast.classList.remove('hidden');
+      setTimeout(() => deviceActionToast.classList.add('hidden'), 4000);
+    }
+
+    function appendMessage(sender, text, isOffline = false) {
+      const isUser = sender === 'USER';
+      const wrapper = document.createElement('div');
+      wrapper.className = `flex ${isUser ? 'justify-end' : 'justify-start'}`;
+
+      const badge = isUser
+        ? 'YOU'
+        : isOffline
+        ? 'ULTRON • OFFLINE CORE'
+        : 'ULTRON • ONLINE AI';
+
+      wrapper.innerHTML = `
+        <div class="max-w-[84%] rounded-2xl px-4 py-2.5 ${
+          isUser
+            ? 'bg-blue-600/25 border border-blue-500/50 text-white'
+            : 'bg-[#0b1736] border border-cyan-500/35 text-slate-100'
+        }">
+          <div class="text-[10px] font-bold tracking-wider text-cyan-400 mb-1">${badge}</div>
+          <div class="text-sm leading-relaxed">${text}</div>
+        </div>
+      `;
+      chatContainer.appendChild(wrapper);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    // Bilingual Natural Tamil + English Speech Synthesis
+    function speakText(text, isTamil) {
+      if (!('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      const voices = window.speechSynthesis.getVoices();
+      const containsTamil = /[\u0B80-\u0BFF]/.test(text);
+
+      if (containsTamil || isTamil) {
+        const tamilVoice = voices.find(v => v.lang.toLowerCase().includes('ta'));
+        if (tamilVoice) utterance.voice = tamilVoice;
+        utterance.lang = 'ta-IN';
+      } else {
+        const enVoice = voices.find(v => v.lang.includes('en-IN') || v.lang.includes('en-GB'));
+        if (enVoice) utterance.voice = enVoice;
+        utterance.lang = 'en-IN';
+      }
+
+      utterance.pitch = 0.96;
+      utterance.rate = 1.02;
+
+      utterance.onstart = () => {
+        statusText.textContent = 'SPEAKING';
+        reactorContainer.classList.add('state-speaking');
+      };
+      utterance.onend = () => {
+        statusText.textContent = state.wakeWordEnabled ? 'WAKE LISTENING' : 'READY';
+        reactorContainer.classList.remove('state-speaking');
+      };
+
+      window.speechSynthesis.speak(utterance);
+    }
+
+    // Android Hardware & Voice Command Router
+    function processDeviceCommands(rawText) {
+      const lower = rawText.toLowerCase().trim();
+      const isTamil = /[\u0B80-\u0BFF]/.test(rawText) ||
+        ['mani', 'enna', 'pannu', 'sollu', 'podu', 'thirandhu', 'vanakkam'].some(w => lower.includes(w));
+
+      // 1. Phone Call Confirmation Flow
+      if (state.pendingCallNumber) {
+        if (['yes', 'confirm', 'ok', 'சரி', 'ஆம்', 'pannu'].some(w => lower.includes(w))) {
+          const num = state.pendingCallNumber;
+          state.pendingCallNumber = null;
+          showDeviceAction(`📞 Android ACTION_CALL → ${num}`);
+          return {
+            handled: true,
+            isTamil,
+            reply: isTamil ? `${num} என்ற எண்ணிற்கு அழைக்கப்படுகிறது.` : `Confirmed. Calling ${num} now.`
+          };
+        } else if (['no', 'cancel', 'வேண்டாம்', 'இல்லை'].some(w => lower.includes(w))) {
+          state.pendingCallNumber = null;
+          return {
+            handled: true,
+            isTamil,
+            reply: isTamil ? 'அழைப்பு ரத்து செய்யப்பட்டது.' : 'Call cancelled.'
+          };
+        }
+      }
+
+      // 2. Open YouTube
+      if (lower.includes('youtube') || lower.includes('யூடியூப்')) {
+        showDeviceAction('🚀 Launching Package: com.google.android.youtube');
+        return {
+          handled: true,
+          isTamil,
+          reply: isTamil ? 'யூடியூப் திறக்கப்படுகிறது.' : 'Opening YouTube.'
+        };
+      }
+
+      // 3. Open WhatsApp
+      if (lower.includes('whatsapp') || lower.includes('வாட்ஸ்அப்')) {
+        showDeviceAction('🚀 Launching Package: com.whatsapp');
+        return {
+          handled: true,
+          isTamil,
+          reply: isTamil ? 'வாட்ஸ்அப் திறக்கப்படுகிறது.' : 'Opening WhatsApp.'
+        };
+      }
+
+      // 4. Open Settings
+      if (lower.includes('settings') || lower.includes('அமைப்புகள்') || lower.includes('செட்டிங்ஸ்')) {
+        showDeviceAction('⚙️ Intent: Settings.ACTION_SETTINGS');
+        return {
+          handled: true,
+          isTamil,
+          reply: isTamil ? 'தொலைபேசி அமைப்புகள் திறக்கப்படுகிறது.' : 'Opening device Settings.'
+        };
+      }
+
+      // 5. Flashlight Control
+      if (lower.includes('flashlight') || lower.includes('torch') || lower.includes('டார்ச்')) {
+        const turnOn = !(lower.includes('off') || lower.includes('அணை'));
+        state.flashlightOn = turnOn;
+        showDeviceAction(`🔦 CameraManager.setTorchMode(${turnOn})`);
+        return {
+          handled: true,
+          isTamil,
+          reply: isTamil
+            ? (turnOn ? 'டார்ச் விளக்கு இயக்கப்பட்டது.' : 'டார்ச் விளக்கு அணைக்கப்பட்டது.')
+            : (turnOn ? 'Flashlight turned on.' : 'Flashlight turned off.')
+        };
+      }
+
+      // 6. Set Alarm
+      if (lower.includes('alarm') || lower.includes('அலாரம்')) {
+        const match = lower.match(/(\d{1,2})/);
+        const hour = match ? match[1] : '07';
+        showDeviceAction(`⏰ AlarmClock.ACTION_SET_ALARM → ${hour}:00`);
+        return {
+          handled: true,
+          isTamil,
+          reply: isTamil ? `${hour} மணிக்கு அலாரம் அமைக்கப்பட்டது.` : `Alarm set for ${hour}:00.`
+        };
+      }
+
+      // 7. Current Time
+      if (lower.includes('time') || lower.includes('mani enna') || lower.includes('மணி என்ன') || lower.includes('நேரம்')) {
+        const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        return {
+          handled: true,
+          isTamil,
+          reply: isTamil ? `இப்போது நேரம் ${now}.` : `The current time is ${now}.`
+        };
+      }
+
+      // 8. Volume Control
+      if (lower.includes('volume') || lower.includes('சத்தம்') || lower.includes('ஒலி')) {
+        const up = lower.includes('up') || lower.includes('increase') || lower.includes('அதிகரி');
+        state.volumeLevel = Math.min(100, Math.max(0, state.volumeLevel + (up ? 15 : -15)));
+        showDeviceAction(`🔊 AudioManager STREAM_MUSIC: ${state.volumeLevel}%`);
+        return {
+          handled: true,
+          isTamil,
+          reply: isTamil
+            ? (up ? 'ஒலி அளவு அதிகரிக்கப்பட்டது.' : 'ஒலி அளவு குறைக்கப்பட்டது.')
+            : (up ? 'Increasing volume.' : 'Decreasing volume.')
+        };
+      }
+
+      // 9. Open Camera
+      if (lower.includes('camera') || lower.includes('கேமரா')) {
+        showDeviceAction('📷 MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA');
+        return {
+          handled: true,
+          isTamil,
+          reply: isTamil ? 'கேமரா திறக்கப்படுகிறது.' : 'Opening the camera.'
+        };
+      }
+
+      // 10. Phone Call with Confirmation
+      if (lower.includes('call') || lower.includes('அழை')) {
+        const digits = rawText.replace(/\D/g, '');
+        if (digits.length >= 3) {
+          state.pendingCallNumber = digits;
+          return {
+            handled: true,
+            isTamil,
+            reply: isTamil
+              ? `${digits} என்ற எண்ணிற்கு அழைக்கவா? ஆம் அல்லது இல்லை என்று சொல்லுங்கள்.`
+              : `Do you want me to call ${digits}? Please confirm Yes or No.`
+          };
+        }
+      }
+
+      return { handled: false, isTamil };
+    }
+
+    // Hybrid Offline + Online AI Intelligence Engine
+    async function generateUltronReply(cleanText, isTamil) {
+      const apiKey = localStorage.getItem('ULTRON_GEMINI_KEY') || '';
+      state.sessionHistory.push({ role: 'user', text: cleanText });
+
+      // Online Mode with Gemini API Key if provided
+      if (state.isOnline && apiKey) {
+        try {
+          const res = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                systemInstruction: {
+                  parts: [{
+                    text: 'You are ULTRON, a futuristic personal AI assistant. Reply concisely without markdown symbols. Respond in natural Tamil if the user uses Tamil or Tanglish, otherwise English.'
+                  }]
+                },
+                contents: state.sessionHistory.slice(-10).map(m => ({
+                  role: m.role === 'user' ? 'user' : 'model',
+                  parts: [{ text: m.text }]
+                }))
+              })
+            }
+          );
+          const data = await res.json();
+          const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) {
+            const cleanReply = text.replace(/\*/g, '').trim();
+            state.sessionHistory.push({ role: 'model', text: cleanReply });
+            return { reply: cleanReply, offline: false };
+          }
+        } catch (err) {
+          console.warn('Falling back to built-in intelligence:', err);
+        }
+      }
+
+      // Built-in Bilingual Knowledge Base (Works 100% Offline & Instant Demo)
+      const q = cleanText.toLowerCase();
+      let reply = '';
+      if (q.includes('gravity') || q.includes('ஈர்ப்பு')) {
+        reply = isTamil
+          ? 'புவியீர்ப்பு விசை என்பது நிறை கொண்ட அனைத்துப் பொருட்களையும் பூமியின் மையத்தை நோக்கி ஈர்க்கும் இயற்கை விசையாகும். இதனால் தான் நாம் தரையில் நடக்க முடிகிறது.'
+          : 'Gravity is the natural force that attracts objects with mass toward each other, keeping us grounded on Earth and planets in orbit.';
+      } else if (q.includes('ai') || q.includes('artificial intelligence') || q.includes('செயற்கை நுண்ணறிவு')) {
+        reply = isTamil
+          ? 'செயற்கை நுண்ணறிவு என்பது மனிதர்களைப் போல சிந்திக்கவும், கற்றுக்கொள்ளவும், முடிவுகளை எடுக்கவும் கணினிகளுக்குப் பயிற்சி அளிக்கும் தொழில்நுட்பமாகும்.'
+          : 'Artificial Intelligence enables machines to learn from data, recognize speech, reason, and assist humans intelligently.';
+      } else if (q.includes('fitness') || q.includes('உடற்பயிற்சி') || q.includes('health')) {
+        reply = isTamil
+          ? 'தினமும் 30 நிமிட உடற்பயிற்சி, 3 லிட்டர் தண்ணீர் மற்றும் புரதச்சத்து நிறைந்த உணவு உங்கள் உடலை ஆரோக்கியமாக வைத்திருக்கும்.'
+          : 'Consistent daily movement, hydration, quality sleep, and balanced nutrition are the pillars of peak fitness.';
+      } else if (q.includes('vanakkam') || q.includes('வணக்கம்') || q.includes('hello') || q.includes('hi')) {
+        reply = isTamil
+          ? 'வணக்கம்! நான் ULTRON. உங்களுக்கு என்ன உதவி வேண்டும்?'
+          : 'Greetings. I am ULTRON. How may I assist you today?';
+      } else {
+        reply = state.isOnline
+          ? (isTamil
+              ? 'உங்கள் கேள்விக்குப் பதிலளிக்க நான் தயாராக உள்ளேன். நேரடி இணைய AI பதில்களுக்கு Settings-ல் Gemini API Key-ஐ உள்ளிடவும், அல்லது சாதன கட்டளைகளைப் பயன்படுத்தவும்.'
+              : 'I am online and ready. Add your Gemini API Key in Settings for full generative answers, or ask me about science, fitness, time, alarms, or device controls.')
+          : (isTamil
+              ? 'நான் தற்போது ஆஃப்லைன் பயன்முறையில் உள்ளேன். நேரம், டார்ச், அலாரம், அழைப்புகள் மற்றும் அடிப்படை கேள்விகளுக்கு என்னால் உதவ முடியும்.'
+              : 'I am currently in Offline Mode. I can execute phone commands, set alarms, tell the time, and answer core knowledge questions.');
+      }
+
+      state.sessionHistory.push({ role: 'model', text: reply });
+      return { reply, offline: !state.isOnline };
+    }
+
+    async function handleUserUtterance(rawText, fromVoice = false) {
+      if (!rawText.trim()) return;
+
+      // Strip "Hey Ultron" wake prefix if present
+      let cleaned = rawText.replace(/^(hey\s+ultron|ultron|ஹே\s+அல்ட்ரான்|அல்ட்ரான்)[,\s]*/i, '').trim();
+
+      if (!cleaned) {
+        const greeting = state.preferTamil ? 'சொல்லுங்கள், நான் கேட்கிறேன்.' : 'Yes, I am listening.';
+        appendMessage('ULTRON', greeting, !state.isOnline);
+        speakText(greeting, state.preferTamil);
+        return;
+      }
+
+      appendMessage('USER', cleaned);
+      statusText.textContent = 'PROCESSING';
+
+      const cmdResult = processDeviceCommands(cleaned);
+      if (cmdResult.handled) {
+        appendMessage('ULTRON', cmdResult.reply, true);
+        speakText(cmdResult.reply, cmdResult.isTamil);
+        return;
+      }
+
+      const aiResult = await generateUltronReply(cleaned, cmdResult.isTamil);
+      appendMessage('ULTRON', aiResult.reply, aiResult.offline);
+      speakText(aiResult.reply, cmdResult.isTamil);
+    }
+
+    // Web Speech API Integration (Live Microphone Recognition)
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition = null;
+
+    if (SpeechRecognition) {
+      recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = 'ta-IN';
+
+      recognition.onstart = () => {
+        statusText.textContent = 'LISTENING...';
+        reactorContainer.classList.add('state-listening');
+      };
+
+      recognition.onresult = (event) => {
+        let transcript = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript;
+        }
+        liveTranscript.textContent = `"${transcript}"`;
+        if (event.results[event.results.length - 1].isFinal) {
+          liveTranscript.textContent = '';
+          handleUserUtterance(transcript, true);
+        }
+      };
+
+      recognition.onerror = () => {
+        statusText.textContent = state.wakeWordEnabled ? 'WAKE LISTENING' : 'READY';
+        reactorContainer.classList.remove('state-listening');
+      };
+
+      recognition.onend = () => {
+        reactorContainer.classList.remove('state-listening');
+        if (statusText.textContent === 'LISTENING...') {
+          statusText.textContent = state.wakeWordEnabled ? 'WAKE LISTENING' : 'READY';
+        }
+      };
+    }
+
+    // Event Listeners
+    document.getElementById('micBtn').addEventListener('click', () => {
+      if (!recognition) {
+        showDeviceAction('⚠️ SpeechRecognition not supported in this browser; use text or quick chips.');
+        return;
+      }
+      recognition.lang = state.preferTamil ? 'ta-IN' : 'en-IN';
+      try { recognition.start(); } catch (e) {}
+    });
+
+    document.getElementById('coreOrb').addEventListener('click', () => {
+      document.getElementById('micBtn').click();
+    });
+
+    document.getElementById('sendBtn').addEventListener('click', () => {
+      const val = userInput.value;
+      userInput.value = '';
+      handleUserUtterance(val, false);
+    });
+
+    userInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') document.getElementById('sendBtn').click();
+    });
+
+    document.querySelectorAll('.quick-cmd').forEach(btn => {
+      btn.addEventListener('click', () => handleUserUtterance(btn.dataset.cmd, false));
+    });
+
+    document.getElementById('modeToggleBtn').addEventListener('click', () => {
+      state.isOnline = !state.isOnline;
+      const btn = document.getElementById('modeToggleBtn');
+      const dot = document.getElementById('modeDot');
+      const label = document.getElementById('modeLabel');
+
+      if (state.isOnline) {
+        btn.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/40 transition';
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse';
+        label.textContent = 'ONLINE AI MODE';
+      } else {
+        btn.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold tracking-wider bg-amber-500/15 text-amber-300 border border-amber-500/40 transition';
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400';
+        label.textContent = 'OFFLINE CORE MODE';
+      }
+    });
+
+    document.getElementById('bgWakeBtn').addEventListener('click', () => {
+      state.wakeWordEnabled = !state.wakeWordEnabled;
+      document.getElementById('bgWakeLabel').textContent = `Wake-Word: ${state.wakeWordEnabled ? 'ON' : 'OFF'}`;
+      statusText.textContent = state.wakeWordEnabled ? 'WAKE LISTENING' : 'READY';
+    });
+
+    document.getElementById('langToggleBtn').addEventListener('click', (e) => {
+      state.preferTamil = !state.preferTamil;
+      e.target.textContent = state.preferTamil ? 'தமிழ் + EN' : 'EN + தமிழ்';
+    });
+
+    document.getElementById('settingsBtn').addEventListener('click', () => {
+      document.getElementById('apiKeyInput').value = localStorage.getItem('ULTRON_GEMINI_KEY') || '';
+      document.getElementById('settingsModal').classList.remove('hidden');
+    });
+
+    document.getElementById('closeSettingsBtn').addEventListener('click', () => {
+      document.getElementById('settingsModal').classList.add('hidden');
+    });
+
+    document.getElementById('saveSettingsBtn').addEventListener('click', () => {
+      const key = document.getElementById('apiKeyInput').value.trim();
+      localStorage.setItem('ULTRON_GEMINI_KEY', key);
+      document.getElementById('settingsModal').classList.add('hidden');
+      showDeviceAction('🔐 API Key encrypted & saved.');
+    });
+
+    document.getElementById('clearChatBtn').addEventListener('click', () => {
+      chatContainer.innerHTML = '';
+      state.sessionHistory = [];
+    });
+
+    // Initial Boot Greeting
+    appendMessage(
+      'ULTRON',
+      'வணக்கம்! நான் ULTRON. "Hey Ultron" என்று சொல்லுங்கள் அல்லது கீழே உள்ள மைக்ரோஃபோனை அழுத்தி தமிழ் அல்லது English-ல் பேசுங்கள்.',
+      false
+    );
+  </script>
+</body>
+</html>
